@@ -23,7 +23,13 @@ export default function AdminSetupPage() {
           password: form.get("password"),
         }),
       });
-      const result = await response.json();
+      const body = await response.text();
+      let result: { error?: string } = {};
+      try {
+        result = body ? JSON.parse(body) : {};
+      } catch {
+        throw new Error(`The setup service returned an unexpected response (HTTP ${response.status}). Please try again shortly.`);
+      }
       if (!response.ok) throw new Error(result.error || "Setup failed. Please try again.");
       window.location.href = "/admin?setup=complete";
     } catch (err) {
