@@ -5,8 +5,6 @@ import { prisma } from "@/lib/prisma";
 import { rateLimit } from "@/lib/rate-limit";
 import { sameOrigin } from "@/lib/security";
 
-const ownerRoles = { in: ["OWNER", "ADMIN"] } as const;
-
 export async function POST(req: NextRequest) {
   const setupToken = process.env.ADMIN_SETUP_TOKEN;
   if (!setupToken || setupToken.length < 32) {
@@ -34,8 +32,8 @@ export async function POST(req: NextRequest) {
   const passwordHash = await hash(parsed.data.password, 12);
 
   try {
-    const user = await prisma.$transaction(async (tx) => {
-      if (await tx.user.count({ where: { role: ownerRoles } })) {
+    await prisma.$transaction(async (tx) => {
+      if (await tx.user.count({ where: { role: { in: ["OWNER", "ADMIN"] } } })) {
         throw new Error("ADMIN_ALREADY_EXISTS");
       }
 
@@ -57,10 +55,9 @@ export async function POST(req: NextRequest) {
           entityId: account.id,
         },
       });
-      return account;
     }, { isolationLevel: "Serializable" });
 
-    return NextResponse.json({ created: true, userId: user.id }, { status: 201 });
+    return NextResponse.json({ created: true }, { status: 201 });
   } catch (error) {
     if (error instanceof Error && error.message === "ADMIN_ALREADY_EXISTS") {
       return NextResponse.json({ error: "An administrator already exists." }, { status: 409 });
