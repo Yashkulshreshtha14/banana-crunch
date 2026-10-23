@@ -1,0 +1,7 @@
+import { NextRequest,NextResponse } from "next/server";
+import { z } from "zod";
+import { hash } from "bcryptjs";
+import { prisma } from "@/lib/prisma";
+import { rateLimit } from "@/lib/rate-limit";
+import { sameOrigin } from "@/lib/security";
+export async function POST(req:NextRequest){const setupToken=process.env.ADMIN_SETUP_TOKEN;if(!setupToken||setupToken.length<32)return NextResponse.json({error:"One-time setup token is not configured."},{status:503});if(!sameOrigin(req))return NextResponse.json({error:"Invalid request origin."},{status:403});const parsed=z.object({token:z.string(),name:z.string().min(2).max(100),email:z.string().email(),password:z.string().min(12).max(128)}).safeParse(await req.json().catch(()=>null));if(!parsed.success||parsed.data.token!==setupToken)return NextResponse.json({error:"Setup is unavailable."},{status:403});if(!rateLimit(`admin-setup:${req.headers.get("x-forwarded-for")||"unknown"}`,3))return NextResponse.json({error:"Too many attempts."},{status:429});if(await prisma.user.count({where:{role:{in:["OWNER","ADMIN"]}}}))return NextResponse.json({error:"An administrator already exists."},{status:409});const passwordHash=await hash(parsed.data.password,12);const user=await prisma.user.create({data:{name:parsed.data.name,email:parsed.data.email.toLowerCase(),passwordHash,role:"OWNER"}});await prisma.auditLog.create({data:{actorId:user.id,action:"INITIAL_OWNER_CREATED",entity:"User",entityId:user.id}});return NextResponse.json({created:true},{status:201});}

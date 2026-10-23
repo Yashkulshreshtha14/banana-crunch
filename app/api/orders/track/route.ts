@@ -1,0 +1,4 @@
+import { NextRequest,NextResponse } from "next/server";
+import { z } from "zod";
+import { prisma } from "@/lib/prisma";
+export async function GET(req:NextRequest){const q=z.object({order:z.string().min(4),email:z.string().email()}).safeParse({order:req.nextUrl.searchParams.get("order"),email:req.nextUrl.searchParams.get("email")});if(!q.success)return NextResponse.json({error:"Enter your order number and email."},{status:400});const order=await prisma.order.findFirst({where:{number:q.data.order,email:q.data.email.toLowerCase()},include:{items:true,payment:true}});if(!order)return NextResponse.json({error:"We couldn't find an order with those details."},{status:404});return NextResponse.json({order:{number:order.number,status:order.status,total:order.total,createdAt:order.createdAt,trackingId:order.trackingId,trackingUrl:order.trackingUrl,paymentStatus:order.payment?.status,items:order.items.map(i=>({name:i.name,quantity:i.quantity}))}});}

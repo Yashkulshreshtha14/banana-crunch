@@ -101,4 +101,3 @@ Before the first production use, apply the schema to the production database wit
 - [ ] Confirm backup restore, monitoring, support contacts, live-payment approval and HTTPS on the production domain.
 
 Automated end-to-end payment and notification tests need a configured PostgreSQL instance, Razorpay sandbox credentials and provider test endpoints. No credentials are bundled, and no fake payment success path is provided.
-

@@ -1,0 +1,4 @@
+import { NextResponse } from "next/server";
+import { prisma } from "@/lib/prisma";
+import { getSession } from "@/lib/security";
+export async function GET(){const session=await getSession();if(!session||session.role!=="CUSTOMER")return NextResponse.json({error:"Sign in to view your account."},{status:401});const user=await prisma.user.findUnique({where:{id:session.id},include:{addresses:true,orders:{include:{items:true,payment:true},orderBy:{createdAt:"desc"},take:30}}});if(!user)return NextResponse.json({error:"Account not found."},{status:404});return NextResponse.json({user:{name:user.name,email:user.email,phone:user.phone,addresses:user.addresses,orders:user.orders.map(o=>({number:o.number,status:o.status,total:o.total,createdAt:o.createdAt,paymentStatus:o.payment?.status,items:o.items.map(i=>({name:i.name,quantity:i.quantity}))}))}});}

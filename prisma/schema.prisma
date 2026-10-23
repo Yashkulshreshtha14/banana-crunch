@@ -1,0 +1,217 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  OWNER
+  ADMIN
+  ORDER_MANAGER
+  CUSTOMER
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  CREATED
+  AUTHORIZED
+  PAID
+  FAILED
+  REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum PaymentProvider {
+  RAZORPAY
+  COD
+}
+
+model User {
+  id           String    @id @default(cuid())
+  name         String
+  email        String    @unique
+  phone        String?
+  passwordHash String?
+  role         Role      @default(CUSTOMER)
+  addresses    Address[]
+  orders       Order[]
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([role, createdAt])
+}
+
+model Address {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  phone     String
+  line1     String
+  line2     String?
+  city      String
+  state     String
+  pincode   String
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  slug        String    @unique
+  description String?
+  products    Product[]
+}
+
+model Product {
+  id                  String      @id @default(cuid())
+  name                String
+  slug                String      @unique
+  description         String
+  images              String[]
+  sku                 String      @unique
+  categoryId          String
+  category            Category    @relation(fields: [categoryId], references: [id])
+  packSize            String
+  weightGrams         Int
+  shippingWeightGrams Int
+  price               Int
+  mrp                 Int?
+  stock               Int         @default(0)
+  lowStockThreshold   Int         @default(10)
+  ingredients         String[]
+  allergens           String[]
+  nutrition           Json?
+  shelfLifeDays       Int         @default(120)
+  taxRate             Decimal     @default(0)
+  published           Boolean     @default(false)
+  featured            Boolean     @default(false)
+  orderItems          OrderItem[]
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  @@index([categoryId, published])
+  @@index([published, featured])
+}
+
+model Coupon {
+  id           String    @id @default(cuid())
+  code         String    @unique
+  discountType String
+  value        Int
+  minOrder     Int       @default(0)
+  maxDiscount  Int?
+  usageLimit   Int?
+  usageCount   Int       @default(0)
+  startsAt     DateTime  @default(now())
+  expiresAt    DateTime?
+  active       Boolean   @default(true)
+}
+
+model Order {
+  id              String      @id @default(cuid())
+  number          String      @unique
+  idempotencyKey  String?     @unique
+  userId          String?
+  user            User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  customerName    String
+  email           String
+  phone           String
+  address         Json
+  status          OrderStatus @default(PENDING)
+  subtotal        Int
+  discount        Int         @default(0)
+  shipping        Int
+  tax             Int         @default(0)
+  total           Int
+  couponCode      String?
+  items           OrderItem[]
+  payment         Payment?
+  trackingId      String?
+  trackingUrl     String?
+  stockRestoredAt DateTime?
+  notes           String?
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  @@index([status, createdAt])
+  @@index([email, createdAt])
+}
+
+model OrderItem {
+  id        String  @id @default(cuid())
+  orderId   String
+  order     Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId String
+  product   Product @relation(fields: [productId], references: [id])
+  name      String
+  sku       String
+  quantity  Int
+  unitPrice Int
+  lineTotal Int
+}
+
+model Payment {
+  id                  String          @id @default(cuid())
+  orderId             String          @unique
+  order               Order           @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  provider            PaymentProvider
+  status              PaymentStatus   @default(CREATED)
+  amount              Int
+  gatewayOrderId      String?         @unique
+  gatewayPaymentId    String?         @unique
+  signatureVerifiedAt DateTime?
+  paidAt              DateTime?
+  refundedAt          DateTime?
+  refundId            String?
+  failureReason       String?
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  @@index([status, updatedAt])
+}
+
+model WebhookEvent {
+  id          String   @id @default(cuid())
+  provider    String
+  eventId     String   @unique
+  event       String
+  payload     Json
+  processedAt DateTime @default(now())
+
+  @@index([provider, processedAt])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actorId   String
+  action    String
+  entity    String
+  entityId  String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([actorId, createdAt])
+  @@index([entity, entityId])
+}
+
+model StoreSetting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
+}

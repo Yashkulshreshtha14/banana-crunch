@@ -1,0 +1,2 @@
+import { catalog,StoreProduct } from "@/lib/catalog";
+export function toStoreProduct(p:any):StoreProduct{return{id:p.id,name:p.name,slug:p.slug,category:typeof p.category==="string"?p.category:p.category?.name||"Snacks",packSize:p.packSize,weightGrams:p.weightGrams,price:p.price,mrp:p.mrp||p.price,stock:p.stock,description:p.description,image:p.images?.[0]||catalog.find(x=>x.slug===p.slug)?.image||catalog[0].image,badge:p.featured?"Bestseller":undefined};}
